@@ -1,0 +1,17 @@
+{
+  "name": "klitikcraft-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "KlitikCraft WhatsApp Bot - Server Status & Player List",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "@hapi/boom": "^10.0.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "dotenv": "^16.4.7",
+    "node-cache": "^5.1.2",
+    "pino": "^9.6.0"
+  }
+}
