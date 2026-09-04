@@ -11,6 +11,7 @@ const qrcode = require('qrcode-terminal');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON);
 const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
+const OWNER_NUMBER = (process.env.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
 const SERVER_IP = process.env.SERVER_IP || 'play.klitikcraft.web.id';
 const SERVER_NAME = process.env.SERVER_NAME || 'KlitikCraft Indonesia';
 const SERVER_ID = parseInt(process.env.SERVER_ID) || 1;
@@ -155,9 +156,10 @@ async function isGroupAdmin(sock, msg) {
 }
 
 function isOwner(msg) {
+    if (!OWNER_NUMBER) return false;
     const sender = msg.key.participant || msg.key.remoteJid;
-    const num = sender.replace(/@.+/, '').replace(/^91/, '');
-    return num === OWNER_NUMBER;
+    const num = sender.replace(/@.+/, '');
+    return num === OWNER_NUMBER || num.endsWith(OWNER_NUMBER);
 }
 
 async function checkPerformanceAlerts(sock) {
@@ -304,7 +306,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!restart') {
-                    if (!isOwner(msg) && !await isGroupAdmin(sock, msg)) {
+                    const sender = msg.key.participant || msg.key.remoteJid;
+                    const inGroup = sender.endsWith('@g.us');
+                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
+                    if (!admin) {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
@@ -316,7 +321,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!kick' && args) {
-                    if (!isOwner(msg) && !await isGroupAdmin(sock, msg)) {
+                    const sender = msg.key.participant || msg.key.remoteJid;
+                    const inGroup = sender.endsWith('@g.us');
+                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
+                    if (!admin) {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
@@ -327,7 +335,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!ban' && args) {
-                    if (!isOwner(msg) && !await isGroupAdmin(sock, msg)) {
+                    const sender = msg.key.participant || msg.key.remoteJid;
+                    const inGroup = sender.endsWith('@g.us');
+                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
+                    if (!admin) {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
@@ -338,7 +349,10 @@ async function startBot() {
                 }
 
                 if (cmd.startsWith('!broadcast ') && args) {
-                    if (!isOwner(msg) && !await isGroupAdmin(sock, msg)) {
+                    const sender = msg.key.participant || msg.key.remoteJid;
+                    const inGroup = sender.endsWith('@g.us');
+                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
+                    if (!admin) {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
