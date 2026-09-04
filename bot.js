@@ -48,6 +48,16 @@ const RULES = [
     '8. Dilarang AFK farming'
 ];
 
+function normalizePhone(raw) {
+    if (!raw) return '';
+    const digits = String(raw).replace(/\D/g, '');
+    if (!digits) return '';
+    if (digits.startsWith('62')) return digits;
+    if (digits.startsWith('0')) return `62${digits.slice(1)}`;
+    return digits;
+}
+
+const OWNER_NUMBER = normalizePhone(process.env.OWNER_NUMBER);
 const msgRetryCounterCache = new NodeCache();
 const useStore = !process.env.USE_STORE || process.env.USE_STORE !== 'false';
 
@@ -165,8 +175,9 @@ function formatInfo() {
 }
 
 function isAdmin(msg) {
-    const sender = (msg.key.participant || msg.key.remoteJid).replace(/@.+/, '');
-    return ADMIN_NUMBERS.includes(sender);
+    const rawSender = msg.key.participant || msg.key.remoteJid || '';
+    const sender = normalizePhone(rawSender.replace(/@.+/, ''));
+    return sender && (ADMIN_NUMBERS.includes(sender) || sender === OWNER_NUMBER);
 }
 
 async function checkPerformanceAlerts(sock) {
