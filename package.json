@@ -12,6 +12,7 @@
     "@supabase/supabase-js": "^2.49.4",
     "dotenv": "^16.4.7",
     "node-cache": "^5.1.2",
-    "pino": "^9.6.0"
+    "pino": "^9.6.0",
+    "ws": "^8.18.0"
   }
 }
