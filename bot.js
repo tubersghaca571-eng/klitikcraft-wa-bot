@@ -14,6 +14,7 @@ const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
 const OWNER_NUMBER = (process.env.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
 const SERVER_IP = process.env.SERVER_IP || 'play.klitikcraft.web.id';
 const SERVER_NAME = process.env.SERVER_NAME || 'KlitikCraft Indonesia';
+const SERVER_ID = parseInt(process.env.SERVER_ID) || 1;
 const DISCORD_URL = process.env.DISCORD_URL || 'https://discord.gg/klitikcraft';
 const WEBSITE_URL = process.env.WEBSITE_URL || 'https://www.klitikcraft.web.id';
 const RULES = [
@@ -36,7 +37,7 @@ const ALERT_COOLDOWN = 300000;
 
 async function getServerStatus() {
     try {
-        const { data, error } = await supabase.from('server_state').select('*').eq('id', 1).single();
+        const { data, error } = await supabase.from('server_state').select('*').eq('id', SERVER_ID).single();
         if (error || !data) return null;
         return data;
     } catch { return null; }
@@ -44,7 +45,7 @@ async function getServerStatus() {
 
 async function getPlayerList() {
     try {
-        const { data, error } = await supabase.from('server_state').select('players').eq('id', 1).single();
+        const { data, error } = await supabase.from('server_state').select('players').eq('id', SERVER_ID).single();
         if (error || !data || !Array.isArray(data.players)) return [];
         return data.players;
     } catch { return []; }
