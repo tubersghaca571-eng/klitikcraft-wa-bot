@@ -7,6 +7,8 @@ const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 
+const qrcode = require('qrcode-terminal');
+
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON);
 const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
 const OWNER_NUMBER = (process.env.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
@@ -178,7 +180,6 @@ async function startBot() {
     const sock = makeWASocket({
         version,
         logger: pino({ level: 'silent' }),
-        printQRInTerminal: true,
         auth: {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: 'silent' })),
@@ -190,7 +191,11 @@ async function startBot() {
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect } = update;
+        const { connection, lastDisconnect, qr } = update;
+        if (qr) {
+            qrcode.generate(qr, { small: true });
+            console.log('Scan QR code above with WhatsApp.');
+        }
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
             if (reason === DisconnectReason.loggedOut) {
