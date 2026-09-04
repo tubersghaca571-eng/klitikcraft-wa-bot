@@ -12,8 +12,8 @@ const QRCode = require('qrcode');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON);
 const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
-const OWNER_NUMBER = (process.env.OWNER_NUMBER || '').replace(/[^0-9]/g, '');
 const SERVER_IP = process.env.SERVER_IP || 'play.klitikcraft.web.id';
+const ADMIN_NUMBERS = ['6285771093400', '6285722659927', '6285885575754'];
 const SERVER_NAME = process.env.SERVER_NAME || 'KlitikCraft Indonesia';
 const SERVER_ID = parseInt(process.env.SERVER_ID) || 1;
 const DISCORD_URL = process.env.DISCORD_URL || 'https://discord.gg/klitikcraft';
@@ -164,22 +164,9 @@ function formatInfo() {
     ].join('\n');
 }
 
-async function isGroupAdmin(sock, msg) {
-    const groupJid = msg.key.remoteJid;
-    if (!groupJid.endsWith('@g.us')) return false;
-    const sender = msg.key.participant || msg.key.remoteJid;
-    try {
-        const metadata = await sock.groupMetadata(groupJid);
-        const admins = metadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin').map(p => p.id);
-        return admins.includes(sender);
-    } catch { return false; }
-}
-
-function isOwner(msg) {
-    if (!OWNER_NUMBER) return false;
-    const sender = msg.key.participant || msg.key.remoteJid;
-    const num = sender.replace(/@.+/, '');
-    return num === OWNER_NUMBER || num.endsWith(OWNER_NUMBER);
+function isAdmin(msg) {
+    const sender = (msg.key.participant || msg.key.remoteJid).replace(/@.+/, '');
+    return ADMIN_NUMBERS.includes(sender);
 }
 
 async function checkPerformanceAlerts(sock) {
@@ -328,6 +315,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!restart') {
+                    if (!isAdmin(msg)) {
+                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
+                        continue;
+                    }
                     await sock.sendMessage(from, { text: '🔄 Restarting server...' });
                     const ok = await sendCommandToServer('RESTART');
                     if (ok) await sock.sendMessage(from, { text: '✅ Perintah restart dikirim.' });
@@ -336,6 +327,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!kick' && args) {
+                    if (!isAdmin(msg)) {
+                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
+                        continue;
+                    }
                     const target = args.replace(/@/g, '').split(' ')[0];
                     await sendCommandToServer(`KICK|${target}`);
                     await sock.sendMessage(from, { text: `✅ Kick request: ${target}` });
@@ -343,6 +338,10 @@ async function startBot() {
                 }
 
                 if (cmd === '!ban' && args) {
+                    if (!isAdmin(msg)) {
+                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
+                        continue;
+                    }
                     const target = args.replace(/@/g, '').split(' ')[0];
                     await sendCommandToServer(`BAN|${target}`);
                     await sock.sendMessage(from, { text: `✅ Ban request: ${target}` });
@@ -350,6 +349,10 @@ async function startBot() {
                 }
 
                 if (cmd.startsWith('!broadcast ') && args) {
+                    if (!isAdmin(msg)) {
+                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
+                        continue;
+                    }
                     const message = args;
                     await sendCommandToServer(`ATTENTION_ALL|📢 BROADCAST\n${message}`);
                     await sock.sendMessage(from, { text: `✅ Broadcast dikirim: ${message}` });
