@@ -31,6 +31,7 @@ const msgRetryCounterCache = new NodeCache();
 const useStore = !process.env.USE_STORE || process.env.USE_STORE !== 'false';
 
 let lastAlertTime = 0;
+let lastServerOnline = null;
 const ALERT_COOLDOWN = 300000;
 
 async function getServerStatus() {
@@ -168,6 +169,34 @@ async function checkPerformanceAlerts(sock) {
             await sock.sendMessage(process.env.ALERT_GROUP_JID, { text: alert });
             lastAlertTime = now;
         } catch (e) { console.error('Alert error:', e.message); }
+    }
+}
+
+async function checkServerStatus(sock) {
+    const groupJid = process.env.ANNOUNCE_GROUP_JID;
+    if (!groupJid) return;
+
+    const status = await getServerStatus();
+    if (!status) return;
+
+    const isOnline = status.online;
+    if (lastServerOnline === isOnline) return;
+    lastServerOnline = isOnline;
+
+    const players = status.players_online || 0;
+    const max = status.players_max || 0;
+
+    let msg;
+    if (isOnline) {
+        msg = `🟢 *SERVER ONLINE*\n\nServer ${SERVER_NAME} sudah menyala!\nPlayers: ${players}/${max}\nIP: ${SERVER_IP}`;
+    } else {
+        msg = `🔴 *SERVER OFFLINE*\n\nServer ${SERVER_NAME} sedang mati.\nNantikan kembali!`;
+    }
+
+    try {
+        await sock.sendMessage(groupJid, { text: msg });
+    } catch (e) {
+        console.error('Announce error:', e.message);
     }
 }
 
@@ -317,6 +346,7 @@ async function startBot() {
     });
 
     setInterval(() => checkPerformanceAlerts(sock), 60000);
+    setInterval(() => checkServerStatus(sock), 30000);
     console.log('Bot started. Waiting for QR code...');
 }
 
