@@ -328,13 +328,6 @@ async function startBot() {
                 }
 
                 if (cmd === '!restart') {
-                    const sender = msg.key.participant || msg.key.remoteJid;
-                    const inGroup = sender.endsWith('@g.us');
-                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
-                    if (!admin) {
-                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
-                        continue;
-                    }
                     await sock.sendMessage(from, { text: '🔄 Restarting server...' });
                     const ok = await sendCommandToServer('RESTART');
                     if (ok) await sock.sendMessage(from, { text: '✅ Perintah restart dikirim.' });
@@ -343,13 +336,6 @@ async function startBot() {
                 }
 
                 if (cmd === '!kick' && args) {
-                    const sender = msg.key.participant || msg.key.remoteJid;
-                    const inGroup = sender.endsWith('@g.us');
-                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
-                    if (!admin) {
-                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
-                        continue;
-                    }
                     const target = args.replace(/@/g, '').split(' ')[0];
                     await sendCommandToServer(`KICK|${target}`);
                     await sock.sendMessage(from, { text: `✅ Kick request: ${target}` });
@@ -357,13 +343,6 @@ async function startBot() {
                 }
 
                 if (cmd === '!ban' && args) {
-                    const sender = msg.key.participant || msg.key.remoteJid;
-                    const inGroup = sender.endsWith('@g.us');
-                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
-                    if (!admin) {
-                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
-                        continue;
-                    }
                     const target = args.replace(/@/g, '').split(' ')[0];
                     await sendCommandToServer(`BAN|${target}`);
                     await sock.sendMessage(from, { text: `✅ Ban request: ${target}` });
@@ -371,13 +350,6 @@ async function startBot() {
                 }
 
                 if (cmd.startsWith('!broadcast ') && args) {
-                    const sender = msg.key.participant || msg.key.remoteJid;
-                    const inGroup = sender.endsWith('@g.us');
-                    const admin = isOwner(msg) || (inGroup && await isGroupAdmin(sock, msg));
-                    if (!admin) {
-                        await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
-                        continue;
-                    }
                     const message = args;
                     await sendCommandToServer(`ATTENTION_ALL|📢 BROADCAST\n${message}`);
                     await sock.sendMessage(from, { text: `✅ Broadcast dikirim: ${message}` });
