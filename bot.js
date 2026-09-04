@@ -6,8 +6,9 @@ const NodeCache = require('node-cache');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const http = require('http');
 
-const qrcode = require('qrcode-terminal');
+const QRCode = require('qrcode');
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON);
 const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
@@ -17,6 +18,25 @@ const SERVER_NAME = process.env.SERVER_NAME || 'KlitikCraft Indonesia';
 const SERVER_ID = parseInt(process.env.SERVER_ID) || 1;
 const DISCORD_URL = process.env.DISCORD_URL || 'https://discord.gg/klitikcraft';
 const WEBSITE_URL = process.env.WEBSITE_URL || 'https://www.klitikcraft.web.id';
+
+const httpServer = http.createServer((req, res) => {
+    if (req.url === '/qr') {
+        const qrPath = path.join(__dirname, 'qr.png');
+        if (fs.existsSync(qrPath)) {
+            res.writeHead(200, { 'Content-Type': 'image/png' });
+            fs.createReadStream(qrPath).pipe(res);
+        } else {
+            res.writeHead(404);
+            res.end('QR not ready');
+        }
+    } else {
+        res.writeHead(200, { 'Content-Type': 'text/plain' });
+        res.end('WA Bot Running. Visit /qr for QR code.');
+    }
+});
+const PORT = process.env.PORT || 3000;
+httpServer.listen(PORT, () => console.log('HTTP server on port ' + PORT));
+
 const RULES = [
     '1. Dilarang cheating/hacking',
     '2. Dilarang griefing rumah player lain',
@@ -235,8 +255,10 @@ async function startBot() {
     sock.ev.on('connection.update', (update) => {
         const { connection, lastDisconnect, qr } = update;
         if (qr) {
-            qrcode.generate(qr, { small: true });
-            console.log('Scan QR code above with WhatsApp.');
+            const qrPath = path.join(__dirname, 'qr.png');
+            await QRCode.toFile(qrPath, qr, { width: 300, margin: 2 });
+            console.log('QR code saved to qr.png');
+            console.log('Scan this QR with WhatsApp.');
         }
         if (connection === 'close') {
             const reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
