@@ -13,7 +13,9 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN update-ca-certificates
-RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+RUN git config --global url."https://github.com/".insteadOf "ssh://git@github.com/" && \
+    git config --global http.sslVerify false && \
+    git config --global https.sslVerify false
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
