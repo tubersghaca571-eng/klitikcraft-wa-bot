@@ -13,7 +13,11 @@ const QRCode = require('qrcode');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON);
 const GROUP_ALLOWED = process.env.GROUP_ONLY === 'true';
 const SERVER_IP = process.env.SERVER_IP || 'play.klitikcraft.web.id';
-const ADMIN_NUMBERS = ['6285771093400', '6285722659927', '6285885575754'];
+const DEFAULT_ADMIN_NUMBERS = ['6285771093400', '6285722659927', '6285885575754'];
+const ADMIN_NUMBERS = Array.from(new Set([
+    ...DEFAULT_ADMIN_NUMBERS,
+    ...String(process.env.ADMIN_NUMBERS || '').split(',').map(v => v.trim()).filter(Boolean).map(normalizePhone)
+].filter(Boolean)));
 const SERVER_NAME = process.env.SERVER_NAME || 'KlitikCraft Indonesia';
 const SERVER_ID = parseInt(process.env.SERVER_ID) || 1;
 const DISCORD_URL = process.env.DISCORD_URL || 'https://discord.gg/klitikcraft';
@@ -50,11 +54,14 @@ const RULES = [
 
 function normalizePhone(raw) {
     if (!raw) return '';
-    const digits = String(raw).replace(/\D/g, '');
-    if (!digits) return '';
-    if (digits.startsWith('62')) return digits;
-    if (digits.startsWith('0')) return `62${digits.slice(1)}`;
-    return digits;
+    let value = String(raw).trim();
+    value = value.replace(/@.+$/, '');
+    value = value.replace(/:\d+$/, '');
+    value = value.replace(/\D/g, '');
+    if (!value) return '';
+    if (value.startsWith('62')) return value;
+    if (value.startsWith('0')) return `62${value.slice(1)}`;
+    return value;
 }
 
 const OWNER_NUMBER = normalizePhone(process.env.OWNER_NUMBER);
@@ -81,11 +88,28 @@ async function getPlayerList() {
     } catch { return []; }
 }
 
-async function sendCommandToServer(command) {
+async function sendServerAction(action, target = '', createdBy = 'whatsapp') {
     try {
-        const { error } = await supabase.from('admin_commands').insert({ command: command });
+        const payload = {
+            action: String(action).toLowerCase(),
+            target: String(target || '').slice(0, 256),
+            created_by: String(createdBy || 'whatsapp').slice(0, 255),
+            status: 'pending'
+        };
+
+        const { error } = await supabase.from('admin_commands').insert(payload);
         return !error;
     } catch { return false; }
+}
+
+async function sendCommandToServer(command) {
+    const normalized = String(command || '').trim();
+    if (!normalized) return false;
+
+    const [rawAction, ...rest] = normalized.split('|');
+    const action = rawAction.toLowerCase();
+    const target = rest.join('|');
+    return sendServerAction(action, target, 'whatsapp');
 }
 
 function formatStatus(data) {
@@ -176,8 +200,11 @@ function formatInfo() {
 
 function isAdmin(msg) {
     const rawSender = msg.key.participant || msg.key.remoteJid || '';
-    const sender = normalizePhone(rawSender.replace(/@.+/, ''));
-    return sender && (ADMIN_NUMBERS.includes(sender) || sender === OWNER_NUMBER);
+    const sender = normalizePhone(rawSender);
+    if (!sender) return false;
+
+    const allowed = new Set([...ADMIN_NUMBERS, OWNER_NUMBER].filter(Boolean));
+    return allowed.has(sender);
 }
 
 async function checkPerformanceAlerts(sock) {
@@ -280,12 +307,25 @@ async function startBot() {
 
             const from = msg.key.remoteJid;
             const isGroup = from.endsWith('@g.us');
-            const sender = msg.key.participant || msg.key.remoteJid;
+            const rawSender = msg.key.participant || msg.key.remoteJid || '';
+            const sender = rawSender;
             const body = msg.message.conversation || msg.message.extendedTextMessage?.text || '';
 
             if (!body) continue;
             const cmd = body.toLowerCase().trim();
             const args = body.slice(body.indexOf(' ') + 1).trim();
+
+            if (body.startsWith('!')) {
+                console.log('DEBUG command receive:', {
+                    from,
+                    rawSender,
+                    normalizedSender: normalizePhone(rawSender),
+                    owner: OWNER_NUMBER,
+                    admins: ADMIN_NUMBERS,
+                    body,
+                    isAdmin: isAdmin(msg)
+                });
+            }
 
             try {
                 if (cmd === '!ping') {
@@ -331,7 +371,7 @@ async function startBot() {
                         continue;
                     }
                     await sock.sendMessage(from, { text: '🔄 Restarting server...' });
-                    const ok = await sendCommandToServer('RESTART');
+                    const ok = await sendServerAction('restart', '', 'whatsapp');
                     if (ok) await sock.sendMessage(from, { text: '✅ Perintah restart dikirim.' });
                     else await sock.sendMessage(from, { text: '❌ Gagal mengirim perintah restart.' });
                     continue;
@@ -342,9 +382,10 @@ async function startBot() {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
-                    const target = args.replace(/@/g, '').split(' ')[0];
-                    await sendCommandToServer(`KICK|${target}`);
-                    await sock.sendMessage(from, { text: `✅ Kick request: ${target}` });
+                    const target = args.replace(/@/g, '').split(/\s+/)[0];
+                    const ok = await sendServerAction('kick', target, 'whatsapp');
+                    if (ok) await sock.sendMessage(from, { text: `✅ Kick request: ${target}` });
+                    else await sock.sendMessage(from, { text: `❌ Gagal mengirim perintah kick untuk ${target}` });
                     continue;
                 }
 
@@ -353,9 +394,10 @@ async function startBot() {
                         await sock.sendMessage(from, { text: '❌ Hanya admin yang bisa pakai command ini.' });
                         continue;
                     }
-                    const target = args.replace(/@/g, '').split(' ')[0];
-                    await sendCommandToServer(`BAN|${target}`);
-                    await sock.sendMessage(from, { text: `✅ Ban request: ${target}` });
+                    const target = args.replace(/@/g, '').split(/\s+/)[0];
+                    const ok = await sendServerAction('ban', target, 'whatsapp');
+                    if (ok) await sock.sendMessage(from, { text: `✅ Ban request: ${target}` });
+                    else await sock.sendMessage(from, { text: `❌ Gagal mengirim perintah ban untuk ${target}` });
                     continue;
                 }
 
@@ -365,8 +407,9 @@ async function startBot() {
                         continue;
                     }
                     const message = args;
-                    await sendCommandToServer(`ATTENTION_ALL|📢 BROADCAST\n${message}`);
-                    await sock.sendMessage(from, { text: `✅ Broadcast dikirim: ${message}` });
+                    const ok = await sendServerAction('attention-all', `📢 BROADCAST\n${message}`, 'whatsapp');
+                    if (ok) await sock.sendMessage(from, { text: `✅ Broadcast dikirim: ${message}` });
+                    else await sock.sendMessage(from, { text: `❌ Gagal mengirim broadcast: ${message}` });
                     continue;
                 }
 
